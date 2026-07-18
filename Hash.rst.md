@@ -1,11 +1,6 @@
-> I will analyze this zkPQC-RSI audit document critically and independently. First, let me check some key technical points mentioned in the audit.
-
+# Verdict on the Audit: 75/100
 
 I analyzed the zkPQC-RSI audit document independently, checking each claim against primary sources (FIPS 204, docs.rs do crate `ml-kem`, record of Ethereum EIPs). Below is my critical evaluation.
-
----
-
-## Verdict on the Audit: 75/100
 
 | Dimension | Score | Note |
 
