@@ -1,0 +1,12 @@
+package google.rpc;
+
+message Status {
+  // A simple error code corresponding to google.rpc.Code enum (e.g., 3 for INVALID_ARGUMENT)
+  int32 code = 1;
+
+  // A developer-facing error message, written in English
+  string message = 2;
+
+  // An array of arbitrary messages containing detailed error payload info
+  repeated google.protobuf.Any details = 3;
+}
