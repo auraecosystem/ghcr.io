@@ -1,57 +1,74 @@
-> Vou analisar este documento de auditoria zkPQC-RSI de forma crítica e independente. Primeiro, deixe-me verificar alguns pontos técnicos-chave mencionados na auditoria.
-Analisei o documento de auditoria zkPQC-RSI de forma independente, verificando cada alegação contra fontes primárias (FIPS 204, docs.rs do crate `ml-kem`, registro de EIPs Ethereum). Abaixo está minha avaliação crítica.
+> I will analyze this zkPQC-RSI audit document critically and independently. First, let me check some key technical points mentioned in the audit.
+
+I analyzed the zkPQC-RSI audit document independently, checking each claim against primary sources (FIPS 204, docs.rs do crate `ml-kem`, record of Ethereum EIPs). Below is my critical evaluation.
 
 ---
 
-## Veredito sobre a Auditoria: 75/100
+## Verdict on the Audit: 75/100
 
-| Dimensão | Score | Nota |
+| Dimension | Score | Note |
+
 |:---|:---|:---|
-| Identificação de Bugs no Original | 90/100 | A maioria dos bugs é real e bem documentada |
-| Correções Propostas | 65/100 | Honestas, mas introduzem novos problemas de segurança |
-| Precisão Técnica | 85/100 | Acerta nos fatos verificáveis, exagera em pontos menores |
-| Compilabilidade | 70/100 | Depende de APIs de crates não fornecidos |
+
+| Bug Identification in the Original | 90/100 | Most bugs are real and well documented |
+
+| Proposed Corrections | 65/100 | Honest, but introduce new security problems |
+
+| Technical Accuracy | 85/100 | Get the verifiable facts right, exaggerate in smaller points |
+
+| Compilability | 70/100 | Depends on unprovided crate APIs |
 
 ---
 
-## ✅ O que a Auditoria Acerta (Confirmado)
+## ✅ What the Audit Gets Right (Confirmed)
 
-### P1 — ML-KEM não é cifra direta
-**Veredito: CORRETO.** O crate `ml-kem` v0.3.2 (RustCrypto) expõe a API `Encapsulate::encapsulate()` que retorna `(Ciphertext, SharedKey)` — nunca `encrypt(data, pk)` . O fluxo correto é KEM → KDF → AEAD, exatamente como a auditoria descreve.
+### P1 — ML-KEM is not a direct cipher
+
+**Verdict: CORRECT. ** The crate `ml-kem` v0.3.2 (RustCrypto) exposes the API `Encapsulate::encapsulate()` that returns `(Ciphertext, SharedKey)` — never `encrypt(data, pk)` . The correct flow is KEM → KDF → AEAD, exactly as the audit describes.
 
 ### P2 — ML-DSA-65 = 3309 bytes
-**Veredito: CORRETO.** FIPS 204 (NIST) especifica explicitamente: ML-DSA-65 produz assinaturas de **3309 bytes** . O documento original com `[u8; 64]` é impossível — confundiu ML-DSA com Ed25519.
 
-### P3 — APIs de crates inventadas
-**Veredito: CORRETO.** O crate `ml-kem` usa `MlKem768::generate_keypair()` e `ek.encapsulate()`, não `MlKem768::encrypt(data, pk)` . Não há crate `ml-dsa` estável no ecossistema RustCrypto com a API mostrada.
+**Verdict: CORRECT. ** FIPS 204 (NIST) explicitly specifies: ML-DSA-65 produces **3309 byte** signatures. The original document with `[u8; 64]` is impossible — confused ML-DSA with Ed25519.
 
-### P6 — KDF ausente
-**Veredito: CORRETO.** O shared secret do KEM nunca deve ser usado diretamente como chave AEAD. Requer HKDF-SHA256 ou SHAKE256 (FIPS 203/204).
+### P3 — Invented crate APIs
 
-### Z1 — f64 em circuito R1CS
-**Veredito: CORRETO.** arkworks opera sobre campos finitos (`Fr`). `f64` precisa de conversão para representação de ponto fixo.
+**Verdict: CORRECT. ** The crate `ml-kem` uses `MlKem768::generate_keypair()` and `ek.encapsulate()`, not `MlKem768::encrypt(data, pk)` . There is no stable `ml-dsa` crate in the RustCrypto ecosystem with the API shown.
 
-### Z2 — Circuito vazio
-**Veredito: CORRETO.** Um `ConstraintSynthesizer` que retorna `Ok(())` sem constraints não prova nada.
+### P6 — absent KDF
 
-### I4 — Patch Wasm sem limite de tamanho
-**Veredito: CORRETO.** `Vec<u8>` sem bound é vetor de DoS. A correção com `MAX_PATCH_SIZE = 1MB` é adequada.
+**Verdict: CORRECT. ** KEM's shared secret should never be used directly as an AEAD key. Requires HKDF-SHA256 or SHAKE256 (FIPS 203/204).
 
-### L2 — ERC-7992
-**Veredito: CORRETO.** Não existe ERC-7992 no registro oficial de EIPs Ethereum (busca retornou zero resultados).
+### Z1 — f64 in R1CS circuit
+
+**Verdict: CORRECT.** arkworks operates on finite fields (`Fr`). `f64` needs conversion to fixed point representation.
+
+### Z2 — Empty circuit
+
+**Verdict: CORRECT. ** A `ConstraintSynthesizer` that returns `Ok(())` without constraints proves nothing.
+
+### I4 — Patch Wasm without size limit
+
+**Verdict: CORRECT. ** `Vec<u8>` without bound is a DoS vector. The correction with `MAX_PATCH_SIZE = 1MB` is appropriate.
+
+### L2 - ERC-7992
+
+**Verdict: CORRECT. ** There is no ERC-7992 in the official Ethereum EIP registry (search returned zero results).
 
 ---
 
-## ⚠️ O que a Auditoria Exagera ou Erra
+## ⚠️ What the Audit Exaggerates or Errs
 
-### P5 — SHA-256 "inconsistente com narrativa PQC"
-**Veredito: EXAGERO.** SHA-256 é **seguro contra quânticos para resistência a preimage** (requer ~2¹²⁸ operações quânticas via Grover). Usar SHA-256 como hash de mensagem em um esquema PQC não é uma inconsistência — é prática padrão. O FIPS 204 próprio usa SHAKE256/SHA-512 internamente, mas não proíbe SHA-256 na aplicação.
+### P5 — SHA-256 "inconsistent with PQC narrative"
 
-### Z3 — arkworks "não estão em Cargo.toml"
-**Veredito: PARCIALMENTE CORRETO.** Os crates `ark-r1cs-std`, `ark-relations`, `ark-bls12-381` existem e são reais. O problema é que o documento original não os declarou, não que eles sejam fictícios. A versão 0.5 do arkworks usa `ark-ff 0.5` — a auditoria está correta sobre isso.
+**Verdict: EXAGGERATION. ** SHA-256 is **quantum safe for preimage resistance** (requires ~2¹²8 quantum operations via Grover). Using SHA-256 as a message hash in a PQC schema is not an inconsistency — it is standard practice. FIPS 204 itself uses SHAKE256/SHA-512 internally, but does not prohibit SHA-256 in the application.
 
-### Z4 — Groth16 sem trusted setup
-**Veredito: CORRETO, mas com ressalva.** Groth16 requer trusted setup, mas existem alternativas como PLONK (universal setup) ou STARKs (sem setup) que poderiam ser usadas. A auditoria não menciona essas alternativas.
+### Z3 — arkworks "are not in Cargo.toml"
+
+**Verdict: PARTIALLY CORRECT. ** The crates `ark-r1cs-std`, `ark-relations`, `ark-bls12-381` exist and are real. The problem is that the original document did not declare them, not that they are fictitious. Version 0.5 of arkworks uses `ark-ff 0.5` — the audit is correct about this.
+
+### Z4 — Groth16 without trusted setup
+
+**Verdict: CORRECT, but with a caveat. ** Groth16 requires trusted setup, but there are alternatives such as PLONK (universal setup) or STARKs (without setup) that could be used. The audit does not mention these alternatives.
 
 ---
 
